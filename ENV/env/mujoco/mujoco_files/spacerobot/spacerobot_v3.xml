@@ -1,0 +1,152 @@
+<?xml version="1.0" ?>
+<mujoco model="ur5">
+    <compiler angle="radian" coordinate="local" eulerseq="xyz"/>
+    <option cone="elliptic" gravity="0 0 0" impratio="5" timestep="0.001" tolerance="1e-10"/>
+    <default class="main">
+        <joint damping="0" armature="1"/>
+        <geom condim="4" solimp="0.99 0.99 0.01" solref="0.01 1"/>
+        <default class="arm1">
+            <joint damping="0"/>
+        </default>
+        <default class="arm2">
+            <joint damping="0"/>
+        </default>
+        <default class="GRIPPER">
+            <joint damping='5'/>
+        </default>
+    </default>
+
+    <include file="../common/visual.xml"/>
+    <include file="../common/skybox.xml"/>
+    <include file="../common/materials.xml"/>
+    <include file="asset.xml"/>
+        <!--Contacts-->
+    <contact>
+        <exclude body1="gripperpalm" body2="gripperfinger_1_link_1"/>
+		<exclude body1="gripperpalm" body2="gripperfinger_2_link_1"/>
+		<exclude body1="gripperpalm" body2="gripperfinger_middle_link_1"/>
+        <exclude body1="wrist_3_link" body2="gripperpalm"/>
+    </contact>
+
+    <worldbody>
+        <geom name="floor" size="5 5 .2" type="plane" material="grid"/>
+        <camera mode="targetbody" name="cam_to_dockingring" pos="4 2 7" target="chasersat"/>
+        <light dir="0 0 -1" directional="true" name="light1" pos="0 -1 6"/>
+        <light dir="0 0 -1" directional="true" name="light2" pos="0 1 6"/>
+
+        <!-- <site name="target0" pos="1.29 0.8 5.1" size="0.04 0.04 0.04" rgba="1 0 0 0.3" type="box"></site> -->
+        <site name="target0" pos="0 0 4.5" size="0.05 0.05 0.05" rgba="1 0 0 0.3" type="sphere"></site>
+
+        <body name="chasersat" pos="0 0 4">
+            <freejoint name="chasersat:joint"/>
+            <geom name="chasersat" mass="439.8441" pos="0 0 0" size="0.8726 0.8726 0.8726" type="box"/>
+            <site name="chasersat" pos="0 0 0" euler="0 0 0" size="0.01 0.01 0.01" type="box"/>
+            <body name="chasersat_base" pos="0.67 0.67 0.9526">
+                <geom name="chasersat_base" mass="10" pos="0 0 -0.04" size="0.1 0.1 0.04" type="box"/>
+                 <include file="arm_v3.xml"/>
+            </body>
+            <body name="chasersat_frame" pos="0.47 0.47 0.9526">
+                <site name="chasersat_frame:x" pos="0.0618 0 0" size="0.01 0.0618" type="cylinder" rgba="1 0 0 1" euler="0 1.5707963 0" />
+                <site name="chasersat_frame:y" pos="0 0.0618 0" size="0.01 0.0618" type="cylinder" rgba="0 1 0 1" euler="-1.5707963 0 0" />
+                <site name="chasersat_frame:z" pos="0 0 0.0618" size="0.01 0.0618" type="cylinder" rgba="0 0 1 1"/>
+            </body>
+        </body>
+
+
+    </worldbody>
+
+    <tendon>
+		<!--Middlefinger tendons-->
+		<fixed name="middle12_cpl" range="0 1">
+			<joint joint="gripperfinger_middle_joint_1"  coef="1"/>
+			<joint joint="gripperfinger_middle_joint_2"  coef="-1.5"/>
+		</fixed>
+		<fixed name="middle23_cpl" range="0 1">
+			<joint joint="gripperfinger_middle_joint_2"  coef="1"/>
+			<joint joint="gripperfinger_middle_joint_3"  coef="-3.5"/>
+		</fixed>
+
+		<!--finger2 tendons-->
+        <fixed name="finger2_12_cpl" range="0 1">
+			<joint joint="gripperfinger_2_joint_1"  coef="1"/>
+			<joint joint="gripperfinger_2_joint_2"  coef="-1.5"/>
+		</fixed>
+		<fixed name="finger2_23_cpl" range="0 1">
+			<joint joint="gripperfinger_2_joint_2"  coef="1"/>
+			<joint joint="gripperfinger_2_joint_3"  coef="-3.5"/>
+		</fixed>
+
+		<!--Finger1 tendons-->
+        <fixed name="finger1_12_cpl" range="0 1">
+			<joint joint="gripperfinger_1_joint_1"  coef="1"/>
+			<joint joint="gripperfinger_1_joint_2"  coef="-1.5"/>
+		</fixed>
+		<fixed name="finger1_23_cpl" range="0 1">
+			<joint joint="gripperfinger_1_joint_2"  coef="1"/>
+			<joint joint="gripperfinger_1_joint_3"  coef="-3.5"/>
+		</fixed>
+	</tendon>
+
+    <equality>
+		<!-- GRIPPER Couplings -->
+		<tendon name="middle12_cpl" 	tendon1="middle12_cpl"/>
+		<tendon name="middle23_cpl" 	tendon1="middle23_cpl"/>
+
+        <tendon name="finger2_12_cpl" 	tendon1="finger2_12_cpl"/>
+		<tendon name="finger2_23_cpl" 	tendon1="finger2_23_cpl"/>
+
+        <tendon name="finger1_12_cpl" 	tendon1="finger1_12_cpl"/>
+		<tendon name="finger1_23_cpl" 	tendon1="finger1_23_cpl"/>
+
+		<!-- SCISSOR Coupling -->
+		<joint name="finger_12_scissor" joint1="gripperpalm_finger_2_joint" joint2="gripperpalm_finger_1_joint" polycoef="0 -1 0 0 0"/>
+	</equality>
+
+    <!-- scalar_force = gain_term * (act or ctrl) + bias_term -->
+    <!-- default: fixed	gain_term = gainprm[0] -->
+    <!-- default: none	bias_term = 0 -->
+    <!--         affine	bias_term = biasprm[0] + biasprm[1]*length + biasprm[2]*velocity -->
+    <actuator>
+        <general biasprm="0 0 -100" biastype="affine" ctrllimited="true" ctrlrange="-2.0942 2.0942" forcelimited="true" forcerange="-150 150" gainprm="100 0 0" joint="arm:shoulder_pan_joint" name="arm:shoulder_pan_T"/>
+        <general biasprm="0 0 -100" biastype="affine" ctrllimited="true" ctrlrange="-2.0942 2.0942" forcelimited="true" forcerange="-150 150" gainprm="100 0 0" joint="arm:shoulder_lift_joint" name="arm:shoulder_lift_T"/>
+        <general biasprm="0 0 -100" biastype="affine" ctrllimited="true" ctrlrange="-2.0942 2.0942" forcelimited="true" forcerange="-150 150" gainprm="100 0 0" joint="arm:elbow_joint" name="arm:elbow_T"/>
+        <general biasprm="0 0 -50" biastype="affine" ctrllimited="true" ctrlrange="-3.14 3.14" forcelimited="true" forcerange="-28 28" gainprm="50 0 0" joint="arm:wrist_1_joint" name="arm:wrist_1_T"/>
+        <general biasprm="0 0 -50" biastype="affine" ctrllimited="true" ctrlrange="-3.14 3.14" forcelimited="true" forcerange="-28 28" gainprm="50 0 0" joint="arm:wrist_2_joint" name="arm:wrist_2_T"/>
+        <general biasprm="0 0 -50" biastype="affine" ctrllimited="true" ctrlrange="-3.14 3.14" forcelimited="true" forcerange="-28 28" gainprm="50 0 0" joint="arm:wrist_3_joint" name="arm:wrist_3_T"/>
+
+        <!--Gripper-->
+        <position name='finger_1' ctrllimited="true" kp="20" joint='gripperfinger_1_joint_1' ctrlrange='0 1.2217'/>
+        <position name='finger_2' ctrllimited="true" kp="20" joint='gripperfinger_2_joint_1' ctrlrange='0 1.2217'/>
+        <position name='middle_finger'  ctrllimited="true" kp="20" joint='gripperfinger_middle_joint_1' ctrlrange='0 1.2217'/>
+        <position name='finger_scissor' ctrllimited="true" kp="20" joint='gripperpalm_finger_1_joint' ctrlrange="-0.2967 0.2967"/>
+
+<!--        <general biasprm="0 0 -50" biastype="affine" ctrllimited="true" ctrlrange="-3.14 3.14" forcelimited="true" forcerange="-28 28" gainprm="50 0 0" joint="gripperfinger_1_joint_1" name="finger_1"/>-->
+<!--        <general biasprm="0 0 -50" biastype="affine" ctrllimited="true" ctrlrange="-3.14 3.14" forcelimited="true" forcerange="-28 28" gainprm="50 0 0" joint="gripperfinger_2_joint_1" name="finger_2"/>-->
+<!--        <general biasprm="0 0 -50" biastype="affine" ctrllimited="true" ctrlrange="-3.14 3.14" forcelimited="true" forcerange="-28 28" gainprm="50 0 0" joint="gripperfinger_middle_joint_1" name="middle_finger"/>-->
+<!--        <general biasprm="0 0 -50" biastype="affine" ctrllimited="true" ctrlrange="-3.14 3.14" forcelimited="true" forcerange="-28 28" gainprm="50 0 0" joint="gripperpalm_finger_1_joint" name="finger_scissor"/>-->
+
+
+        <!-- <general ctrllimited="true" ctrlrange="-150 150" forcelimited="true" forcerange="-150 150" gainprm="1" joint="arm:shoulder_pan_joint" name="arm:shoulder_pan_T"/>
+        <general ctrllimited="true" ctrlrange="-150 150" forcelimited="true" forcerange="-150 150" gainprm="1" joint="arm:shoulder_lift_joint" name="arm:shoulder_lift_T"/>
+        <general ctrllimited="true" ctrlrange="-150 150" forcelimited="true" forcerange="-150 150" gainprm="1" joint="arm:elbow_joint" name="arm:elbow_T"/> -->
+        <!-- <general ctrllimited="true" ctrlrange="-28 28" forcelimited="true" forcerange="-28 28" gainprm="1" joint="arm:wrist_1_joint" name="arm:wrist_1_T"/>
+        <general ctrllimited="true" ctrlrange="-28 28" forcelimited="true" forcerange="-28 28" gainprm="1" joint="arm:wrist_2_joint" name="arm:wrist_2_T"/>
+        <general ctrllimited="true" ctrlrange="-28 28" forcelimited="true" forcerange="-28 28" gainprm="1" joint="arm:wrist_3_joint" name="arm:wrist_3_T"/> -->
+    </actuator>
+
+    <sensor>
+        <!-- <torque name="shoulder_sensor" site="shoulder_site"/>
+        <torque name="upper_arm_sensor" site="upperarm_site"/>
+        <torque name="forearm_sensor" site="forearm_site"/>
+        <torque name="wrist_1_sensor" site="wrist_1_site"/>
+        <torque name="wrist_2_sensor" site="wrist_2_site"/>
+        <torque name="wrist_3_sensor" site="wrist_3_site"/> -->
+        <actuatorfrc name="shoulder_pan_P_frc" actuator="arm:shoulder_pan_T"/>
+        <actuatorfrc name="shoulder_lift_P_frc" actuator="arm:shoulder_lift_T"/>
+        <actuatorfrc name="forearm_P_frc" actuator="arm:elbow_T"/>
+        <actuatorfrc name="wrist_1_P_frc" actuator="arm:wrist_1_T"/>
+        <actuatorfrc name="wrist_2_P_frc" actuator="arm:wrist_2_T"/>
+        <actuatorfrc name="wrist_3_P_frc" actuator="arm:wrist_3_T"/>
+    </sensor>
+
+</mujoco>

@@ -1,0 +1,16 @@
+<mujoco>
+    <asset>
+        <mesh name="v_base" file="stls/v_base.stl" />
+        <mesh name="v_shoulder" file="stls/v_shoulder.stl" />
+        <mesh name="v_upperarm" file="stls/v_upperarm.stl" />
+        <mesh name="v_forearm" file="stls/v_forearm.stl" />
+        <mesh name="v_wrist1" file="stls/v_wrist1.stl" />
+        <mesh name="v_wrist2" file="stls/v_wrist2.stl" />
+        <mesh name="v_wrist3" file="stls/v_wrist3.stl" />
+        <mesh name="gripperpalm"    file="stls/palm.STL"     />
+        <mesh name="link_0"         file="stls/link_0.STL"   />
+        <mesh name="link_1"         file="stls/link_1.STL"   />
+        <mesh name="link_2"         file="stls/link_2.STL"   />
+        <mesh name="link_3"         file="stls/link_3.STL"   />
+    </asset>
+</mujoco>

@@ -1,0 +1,27 @@
+<!-- unit quat in mujoco xml is "1 0 0 0" -->
+<!-- "0.707107 0 0.707107 0" = [ x: 0, y: 1.5707963(90), z: 0 ]-->
+<!-- "0.5 0.5 -0.5 0.5" = [ x: 1.5707963(90), y: 0, z: 1.5707963(90) ]-->
+<mujoco>
+    <body name="base_link" pos="0 0 0">
+        <inertial pos="0 0 0" quat="0.5 0.5 -0.5 0.5" mass="4" diaginertia="0.0072 0.00443333 0.00443333" />
+        <geom name="v_base_link" type="mesh" group="1" mesh="v_base" />
+
+        <body name="shoulder_link" pos="0 0 0.089159">
+            <inertial pos="0 0 0" mass="3.7" diaginertia="0.0102675 0.0102675 0.00666" />
+            <joint class="arm1" name="arm:shoulder_pan_joint" pos="0 0 0" axis="0 0 1"  />
+            <geom name="v_shoulder_link" type="mesh" group="1"  mesh="v_shoulder" />
+
+            <body name="upper_arm_link" pos="0 0.13585 0" euler="0 1.5707963 0">
+                <inertial pos="0 0 0.28" mass="8.393" diaginertia="0.226891 0.226891 0.0151074" />
+                <joint class="arm1" name="arm:shoulder_lift_joint" pos="0 0 0" axis="0 1 0"  />
+                <geom name="v_upper_arm_link" type="mesh" group="1" mesh="v_upperarm" />
+
+                <body name="forearm_link" pos="0 -0.1197 0.425">
+                    <inertial pos="0 0 0.25" mass="2.275" diaginertia="0.0494433 0.0494433 0.004095" />
+                    <joint class="arm1" name="arm:elbow_joint" pos="0 0 0" axis="0 1 0"  />
+                    <geom name="v_forearm_link" type="mesh" group="1" mesh="v_forearm" />
+                </body>
+            </body>
+        </body>
+    </body>
+</mujoco>

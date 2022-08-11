@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<!--仿ur5的手臂-->
+<mujoco model="ur5">
+    <compiler angle="radian" coordinate="local" eulerseq="xyz"/>
+    <option cone="elliptic" gravity="0 0 0" impratio="5" timestep="0.001" tolerance="1e-10"/>
+    <default class="main">
+        <joint damping="0"/>
+        <geom condim="4" solimp="0.99 0.99 0.01" solref="0.01 1"/>
+        <default class="arm1">
+            <joint damping="0"/>
+        </default>
+        <default class="arm2">
+            <joint damping="0"/>
+        </default>
+    </default>
+
+    <include file="../common/visual.xml"/>
+    <include file="../common/skybox.xml"/>
+    <include file="../common/materials.xml"/>
+    <include file="asset.xml"/>
+
+    <worldbody>
+        <geom name="floor" size="5 5 .2" type="plane" material="grid"/>
+        <camera mode="targetbody" name="cam_to_dockingring" pos="4 2 7" target="chasersat"/>
+        <light dir="0 0 -1" directional="true" name="light1" pos="0 -0.25 3"/>
+        <light dir="0 0 -1" directional="true" name="light2" pos="0 0.25 3"/>
+
+        <body name="chasersat" pos="0 0 4">
+            <freejoint name="chasersat:joint"/>
+            <geom name="chasersat" mass="419.8441" pos="0 0 0" size="0.8726 0.8726 0.8726" type="box"/>
+            <site name="chasersat" pos="0 0 0" euler="0 0 0" size="0.01 0.01 0.01" type="box"/>
+            <body name="base" pos="0.67 0.67 0.9526">
+                <geom name="base" mass="10" pos="0 0 -0.04" size="0.1 0.1 0.04" type="box"/>
+                <include file="arm_v1.xml"/>
+            </body>
+            <body name="sat_frame" pos="0.47 0.47 0.9526">
+                <site name="sat_frame:x" pos="0.0618 0 0" size="0.01 0.0618" type="cylinder" rgba="1 0 0 1" euler="0 1.5707963 0" />
+                <site name="sat_frame:y" pos="0 0.0618 0" size="0.01 0.0618" type="cylinder" rgba="0 1 0 1" euler="-1.5707963 0 0" />
+                <site name="sat_frame:z" pos="0 0 0.0618" size="0.01 0.0618" type="cylinder" rgba="0 0 1 1"/>
+            </body>
+            
+        </body>
+
+        <body name="object0" pos = "1.8 1.0 4.879">
+            <joint name="object0:joint" type="free" damping="0.01"/>
+            <geom size="0.15 0.15 0.15" type="box" name="object0" rgba="0.5 0.2 0.3 0.8"/>
+        </body>
+
+        <!--include file="subgoal.xml" /-->
+    </worldbody>
+
+    <actuator>
+        <general name="arm:shoulder_pan_T" biasprm="0 0 -100" biastype="affine" ctrllimited="true" ctrlrange="-2.0942 2.0942" forcelimited="true" forcerange="-150 150" gainprm="100 0 0" joint="arm:shoulder_pan_joint" />
+        <general name="arm:shoulder_lift_T" biasprm="0 0 -100" biastype="affine" ctrllimited="true" ctrlrange="-2.0942 2.0942" forcelimited="true" forcerange="-150 150" gainprm="100 0 0" joint="arm:shoulder_lift_joint" />
+        <general name="arm:elbow_T" biasprm="0 0 -100" biastype="affine" ctrllimited="true" ctrlrange="-2.0942 2.0942" forcelimited="true" forcerange="-150 150" gainprm="100 0 0" joint="arm:elbow_joint" />
+    </actuator>
+</mujoco>

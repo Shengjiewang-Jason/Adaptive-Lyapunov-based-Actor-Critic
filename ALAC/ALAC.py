@@ -134,7 +134,7 @@ class ALAC(object):
             if self.use_lyapunov is True:
                 a_loss = self.labda * self.l_derta + self.alpha * tf.reduce_mean(log_pis) - policy_prior_log_probs
             else:
-                a_loss = a_preloss
+                a_loss = tf.reduce_mean(self.l_)
 
             self.a_loss = a_loss
             self.atrain = tf.train.AdamOptimizer(self.LR_A).minimize(a_loss, var_list=a_params)

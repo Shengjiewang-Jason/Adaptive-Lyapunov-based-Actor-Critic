@@ -1,7 +1,6 @@
 import tensorflow as tf
 import os
 from variant import *
-from disturber.disturber import Disturber
 import numpy as np
 import time
 import logger

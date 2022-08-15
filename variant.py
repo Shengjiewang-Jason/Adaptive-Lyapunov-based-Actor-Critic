@@ -7,15 +7,15 @@ SEED = None
 
 VARIANT = {
     'env_name': 'Cartpole-cost', 
-    # 'env_name': 'Pointcircle-cost',    
-    # 'env_name': 'Minitaur-cost',  
-    # 'env_name': 'Swimmer-cost',   
-    # 'env_name': 'HalfCheetah-cost',  
-    # 'env_name': 'Ant-cost', 
-    # 'env_name': 'Humanoid-cost', 
-    # 'env_name': 'Spacereach-cost', 
-    # 'env_name': 'Spacerandom-cost',
-    # 'env_name': 'Spacedualarm-cost',
+    # 'env_name': 'Pointcirclecost-v0',    
+    # 'env_name': 'Minitaurcost-v0',  
+    # 'env_name': 'Swimmercost-v0',   
+    # 'env_name': 'HalfCheetahcost-v0',  
+    # 'env_name': 'Antcost-v0', 
+    # 'env_name': 'Humanoidcost-v0', 
+    # 'env_name': 'Spacereachcost-v0', 
+    # 'env_name': 'Spacerandomcost-v0',
+    # 'env_name': 'Spacedualarmcost-v0',
     
     
     # training prams

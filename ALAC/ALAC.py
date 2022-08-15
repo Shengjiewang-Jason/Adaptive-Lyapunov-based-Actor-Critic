@@ -34,7 +34,7 @@ class ALAC(object):
 
         ###############################  Model parameters  ####################################
         # self.memory_capacity = variant['memory_capacity']
-        print("You choose the LACv4 algorithm.")
+        print("You choose the ALAC algorithm.")
         
         self.batch_size = variant['batch_size']
         self.network_structure = variant['network_structure']

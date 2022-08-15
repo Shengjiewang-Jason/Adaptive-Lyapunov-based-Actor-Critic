@@ -18,6 +18,11 @@ Following the instructios in https://github.com/openai/mujoco-py to setup a mujo
 LD_LIBRARY_PATH=${HOME}/.mujoco/mujoco200/bin;
 LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so
 ```
+
+If mujoco downloaded was 210 and saved to mujoco210 the mujocopy version from requirements might not work so try
+```
+pip3 install -U 'mujoco-py<2.2,>=2.1'
+```
 Note: you should ensure the versions of the mujoco and the mujoco-py are the same. 
 
 ### Create environment

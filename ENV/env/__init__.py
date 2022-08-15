@@ -31,7 +31,7 @@ for game in ['pong']:
 # mujoco
 
 register(
-    id='HalfCheetah-cost',
+    id='HalfCheetahcost-v0',
     entry_point='ENV.env.mujoco:HalfCheetahEnv_cost',
     max_episode_steps=1000,
     reward_threshold=4800.0,
@@ -39,19 +39,19 @@ register(
 
 
 register(
-    id='Pointcircle-cost',
+    id='Pointcirclecost-v0',
     entry_point='ENV.env.mujoco:PointEnv',
     max_episode_steps=65,
 )
 
 register(
-    id='Ant-cost',
+    id='Antcost-v0',
     entry_point='ENV.env.mujoco:AntEnv_cost',
     max_episode_steps=1000,
     reward_threshold=6000.0,
 )
 register(
-    id='Humanoid-cost',
+    id='Humanoidcost-v0',
     entry_point='ENV.env.mujoco:HumanoidEnv_cost',
     max_episode_steps=1000,
     reward_threshold=6000.0,
@@ -59,20 +59,20 @@ register(
 
 
 register(
-    id='Spacereach-cost',
+    id='Spacereachcost-v0',
     entry_point='ENV.env.mujoco:SpaceReachEnv_cost',
     max_episode_steps=512,
 )
 
 
 register(
-    id='Spacerandom-cost',
+    id='Spacerandomcost-v0',
     entry_point='ENV.env.mujoco:SpaceRandomEnv_cost',
     max_episode_steps=512,
 )
 
 register(
-    id='Spacedualarm-cost',
+    id='Spacedualarmcost-v0',
     entry_point='ENV.env.mujoco:SpaceRobotDualArm_cost',
     max_episode_steps=512,
 )

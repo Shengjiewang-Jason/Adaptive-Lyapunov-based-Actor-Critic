@@ -77,7 +77,7 @@ ENV_PARAMS = {
              'actor': [64,64],
              },
     },
-    'HalfCheetah-cost': {
+    'HalfCheetahcost-v0': {
         'max_ep_steps': 200,
         'max_global_steps': int(5e5),
         'max_episodes': int(5e5),
@@ -88,7 +88,7 @@ ENV_PARAMS = {
              'actor': [64, 64],
              },
     },
-    'Pointcircle-cost': {
+    'Pointcirclecost-v0': {
         'max_ep_steps': 65,
         'max_global_steps': int(3e5),
         'max_episodes': int(3e5),
@@ -98,7 +98,7 @@ ENV_PARAMS = {
                 'actor': [64, 64],
                 },
     },  
-    'Ant-cost': {
+    'Antcost-v0': {
         'max_ep_steps': 200,
         'max_global_steps': int(1e6),
         'max_episodes': int(1e6),
@@ -109,7 +109,7 @@ ENV_PARAMS = {
              'actor': [64, 64],
              },
     },
-    'Humanoid-cost': {
+    'Humanoidcost-v0': {
         'max_ep_steps': 500,
         'max_global_steps': int(1e6),
         'max_episodes': int(1e6),
@@ -120,7 +120,7 @@ ENV_PARAMS = {
              'actor': [256, 256],
              },
     },
-    'Spacereach-cost': {
+    'Spacereachcost-v0': {
         'max_ep_steps': 200,
         'max_global_steps': int(3e5),
         'max_episodes': int(3e5),
@@ -131,7 +131,7 @@ ENV_PARAMS = {
              'actor': [256, 256],
              },
     },      
-    'Spacerandom-cost': {
+    'Spacerandomcost-v0': {
         'max_ep_steps': 200,
         'max_global_steps': int(5e5),
         'max_episodes': int(5e5),
@@ -142,7 +142,7 @@ ENV_PARAMS = {
              'actor': [16, 16],
              },
     },
-    'Spacedualarm-cost': {
+    'Spacedualarmcost-v0': {
         'max_ep_steps': 200,
         'max_global_steps': int(5e5),
         'max_episodes': int(5e5),

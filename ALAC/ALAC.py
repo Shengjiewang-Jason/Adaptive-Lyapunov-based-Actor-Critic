@@ -17,7 +17,7 @@ from variant import *
 SCALE_DIAG_MIN_MAX = (-20, 2)
 SCALE_lambda_MIN_MAX = (0, 1)
 
-
+#    pi, logp_pi= actor_critic_agent.pi(new_observation_)
 
 class ALAC(object):
     def __init__(self,
@@ -86,7 +86,7 @@ class ALAC(object):
 
             self.use_lyapunov = variant['use_lyapunov']
             self.adaptive_alpha = variant['adaptive_alpha']
-
+ 
             a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='Actor/actor')
             l_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='Actor/Lyapunov')
 

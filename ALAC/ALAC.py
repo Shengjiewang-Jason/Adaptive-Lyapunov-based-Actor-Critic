@@ -12,7 +12,7 @@ sys.path.append("..")
 from eval import training_evaluation
 from pool.pool import Pool
 import logger
-from variant import *
+from CONFIG import *
 
 SCALE_DIAG_MIN_MAX = (-20, 2)
 SCALE_lambda_MIN_MAX = (0, 1)
@@ -25,7 +25,7 @@ class ALAC(object):
                  s_dim,
 
 
-                 variant,
+                 CONFIG,
 
                  action_prior = 'uniform',
                  ):
@@ -33,30 +33,30 @@ class ALAC(object):
 
 
         ###############################  Model parameters  ####################################
-        # self.memory_capacity = variant['memory_capacity']
+        # self.memory_capacity = CONFIG['memory_capacity']
         print("You choose the LACv4 algorithm.")
         
-        self.batch_size = variant['batch_size']
-        self.network_structure = variant['network_structure']
-        gamma = variant['gamma']
+        self.batch_size = CONFIG['batch_size']
+        self.network_structure = CONFIG['network_structure']
+        gamma = CONFIG['gamma']
 
-        tau = variant['tau']
-        self.approx_value = True if 'approx_value' not in variant.keys() else variant['approx_value']
+        tau = CONFIG['tau']
+        self.approx_value = True if 'approx_value' not in CONFIG.keys() else CONFIG['approx_value']
         # self.memory = np.zeros((self.memory_capacity, s_dim * 2 + a_dim+ d_dim + 3), dtype=np.float32)
         # self.pointer = 0
         self.sess = tf.Session()
         self._action_prior = action_prior
-        s_dim = s_dim * (variant['history_horizon']+1)
+        s_dim = s_dim * (CONFIG['history_horizon']+1)
         self.a_dim, self.s_dim, = a_dim, s_dim
-        self.history_horizon = variant['history_horizon']
-        self.working_memory = deque(maxlen=variant['history_horizon']+1)
-        target_entropy = variant['target_entropy']
+        self.history_horizon = CONFIG['history_horizon']
+        self.working_memory = deque(maxlen=CONFIG['history_horizon']+1)
+        target_entropy = CONFIG['target_entropy']
         if target_entropy is None:
             self.target_entropy = -self.a_dim   #lower bound of the policy entropy
         else:
             self.target_entropy = target_entropy
-        self.finite_horizon = variant['finite_horizon']
-        self.soft_predict_horizon = variant['soft_predict_horizon']
+        self.finite_horizon = CONFIG['finite_horizon']
+        self.soft_predict_horizon = CONFIG['soft_predict_horizon']
         with tf.variable_scope('Actor'):
             self.S = tf.placeholder(tf.float32, [None, s_dim], 's')
             self.S_ = tf.placeholder(tf.float32, [None, s_dim], 's_')
@@ -71,9 +71,9 @@ class ALAC(object):
             self.LR_C = tf.placeholder(tf.float32, None, 'LR_C')
             self.LR_L = tf.placeholder(tf.float32, None, 'LR_L')
             # self.labda = tf.placeholder(tf.float32, None, 'Lambda')
-            labda = variant['labda']
-            alpha = variant['alpha']
-            alpha3 = variant['alpha3']
+            labda = CONFIG['labda']
+            alpha = CONFIG['alpha']
+            alpha3 = CONFIG['alpha3']
             log_labda = tf.get_variable('lambda', None, tf.float32, initializer=tf.log(labda))
             log_alpha = tf.get_variable('alpha', None, tf.float32, initializer=tf.log(alpha))  # Entropy Temperature
             self.labda = tf.clip_by_value(tf.exp(log_labda), *SCALE_lambda_MIN_MAX)
@@ -84,8 +84,8 @@ class ALAC(object):
             self.l = self._build_l(self.S, self.a_input)   # lyapunov 网络
 
 
-            self.use_lyapunov = variant['use_lyapunov']
-            self.adaptive_alpha = variant['adaptive_alpha']
+            self.use_lyapunov = CONFIG['use_lyapunov']
+            self.adaptive_alpha = CONFIG['adaptive_alpha']
  
             a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='Actor/actor')
             l_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='Actor/Lyapunov')
@@ -342,19 +342,19 @@ def evaluate_training_rollouts(paths):
     return diagnostics
 
 
-def train(variant):
-    env_name = variant['env_name']
+def train(CONFIG):
+    env_name = CONFIG['env_name']
     env = get_env_from_name(env_name)
 
-    env_params = variant['env_params']
+    env_params = CONFIG['env_params']
 
     max_episodes = env_params['max_episodes']
     max_ep_steps = env_params['max_ep_steps']
     max_global_steps = env_params['max_global_steps']
-    store_last_n_paths = variant['num_of_training_paths']
-    evaluation_frequency = variant['evaluation_frequency']
+    store_last_n_paths = CONFIG['num_of_training_paths']
+    evaluation_frequency = CONFIG['evaluation_frequency']
 
-    policy_params = variant['alg_params']
+    policy_params = CONFIG['alg_params']
     policy_params['network_structure'] = env_params['network_structure']
 
 
@@ -405,7 +405,7 @@ def train(variant):
     last_training_paths = deque(maxlen=store_last_n_paths)
     training_started = False
 
-    log_path = variant['log_path']
+    log_path = CONFIG['log_path']
     logger.configure(dir=log_path, format_strs=['csv'])
     logger.logkv('tau', policy_params['tau'])
 
@@ -484,8 +484,8 @@ def train(variant):
 
                 training_diagnotic = evaluate_training_rollouts(last_training_paths)
                 if training_diagnotic is not None:
-                    if variant['num_of_evaluation_paths'] > 0:
-                        eval_diagnotic = training_evaluation(variant, env, policy)
+                    if CONFIG['num_of_evaluation_paths'] > 0:
+                        eval_diagnotic = training_evaluation(CONFIG, env, policy)
                         [logger.logkv(key, eval_diagnotic[key]) for key in eval_diagnotic.keys()]
                         training_diagnotic.pop('return')
                     [logger.logkv(key, training_diagnotic[key]) for key in training_diagnotic.keys()]
@@ -494,7 +494,7 @@ def train(variant):
                     logger.logkv('lr_l', lr_l_now)
 
                     string_to_print = ['time_step:', str(global_step), '|']
-                    if variant['num_of_evaluation_paths'] > 0:
+                    if CONFIG['num_of_evaluation_paths'] > 0:
                         [string_to_print.extend([key, ':', str(eval_diagnotic[key]), '|'])
                          for key in eval_diagnotic.keys()]
                     [string_to_print.extend([key, ':', str(round(training_diagnotic[key], 2)) , '|'])

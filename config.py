@@ -5,7 +5,7 @@ import numpy as np
 import ENV.env
 SEED = None
 
-VARIANT = {
+CONFIG = {
     'env_name': 'Cartpole-cost', 
     # 'env_name': 'Pointcirclecost-v0',    
     # 'env_name': 'Minitaurcost-v0',  
@@ -41,7 +41,7 @@ VARIANT = {
     'evaluation_frequency': 2048,
 }
 
-VARIANT['log_path']='/'.join(['./log', VARIANT['env_name'], VARIANT['algorithm_name'] + VARIANT['additional_description']])
+CONFIG['log_path']='/'.join(['./log', CONFIG['env_name'], CONFIG['algorithm_name'] + CONFIG['additional_description']])
 
 ENV_PARAMS = {
     'Cartpole-cost': {
@@ -191,9 +191,9 @@ EVAL_PARAMS = {
         'impulse_instant': 20,
     },
 }
-VARIANT['env_params']=ENV_PARAMS[VARIANT['env_name']]
-VARIANT['eval_params']=EVAL_PARAMS[VARIANT['evaluation_form']]
-VARIANT['alg_params']=ALG_PARAMS[VARIANT['algorithm_name']]
+CONFIG['env_params']=ENV_PARAMS[CONFIG['env_name']]
+CONFIG['eval_params']=EVAL_PARAMS[CONFIG['evaluation_form']]
+CONFIG['alg_params']=ALG_PARAMS[CONFIG['algorithm_name']]
 
 RENDER = False
 
@@ -204,7 +204,7 @@ def get_env_from_name(name):
         env = env.unwrapped
     elif name == 'Minitaur-cost':
         from ENV.minitaur_env import minitaur_env as env
-        env = env(render=VARIANT['env_params']['eval_render'])
+        env = env(render=CONFIG['env_params']['eval_render'])
         env = env.unwrapped
     elif name == 'Swimmer-cost':
         from ENV.swimmer import swimmer_env as env

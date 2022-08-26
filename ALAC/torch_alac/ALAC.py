@@ -1,25 +1,29 @@
+from cProfile import label
 from webbrowser import get
 import torch as T
 import numpy as np
 import core
-from variant import get_env_from_name
+from config import get_env_from_name
 from copy import deepcopy
 from torch.optim import Adam
 from memory import  ReplayBuffer
 import torch.optim as optim
 import time
 from collections import OrderedDict, deque
+from common import logger
 class ALAC():
-    def __init__(self, a_dim, s_dim,variant, seed = 0,
+    def __init__(self, a_dim, s_dim, CONFIG, seed = 0,
                 action_prior = "uniform", lambda_optimizer: str = 'Adam') -> None:
         self.SCALE_lambda_MIN_MAX = (0, 1)
-        self.gamma = variant['gamma']
-        tau = variant['tau'] # value for plymac update
+        self.gamma = CONFIG['gamma']
+        self.tau = CONFIG['tau'] # value for plymac update
         self.action_prior = action_prior
         self.a_dim = a_dim
-        self.target_entropy = variant['target_entropy']
+        self.target_entropy = CONFIG['target_entropy']
+
+        
         # learning rate declerations
-        policy_params = variant['alg_params']
+        policy_params = CONFIG['alg_params']
         lr_actor_network, lr_criric_network, lr_langrangian_multipliter = \
             policy_params['lr_a'], policy_params['lr_c'], policy_params['lr_l']
 
@@ -27,7 +31,7 @@ class ALAC():
         # declare networks and target networks
         actor_critic_Lyapunov = core.MLPActorCritic
         # Create actor-critic module and target networks
-        self.actor_critic_agent = actor_critic_Lyapunov(env.observation_space['observation'], env.action_space, **ac_kwargs)
+        self.actor_critic_agent = actor_critic_Lyapunov(s_dim, action_space=a_dim)
         self.actor_critic_agent_target = deepcopy(self.actor_critic_agent)
 
         #actor and critic optimizers
@@ -37,8 +41,8 @@ class ALAC():
 
         #declare lagrange multipliers and optimizers lamda_l and lamda_e
        
-        labda_l = variant['labda']
-        labda_e = variant['alpha']
+        labda_l = CONFIG['labda']
+        labda_e = CONFIG['alpha']
 
         self.log_lamda_l = T.nn.Parameter(
                         T.as_tensor(T.log(labda_l)),
@@ -70,7 +74,6 @@ class ALAC():
         '''
         return T.clamp(T.exp(self.log_lamda_l), *self.SCALE_lambda_MIN_MAX)
 
-
     def compute_L_delta(self, l_, l):
         '''
         page 7 to compute delta L
@@ -82,6 +85,7 @@ class ALAC():
         l_delta_2 = (l_ - l + (k_l) *(l - l_)).mean()
 
         l_delta = (k_l) * l_delta_1 + lamda_l * l_delta_2
+        
         return l_delta
 
     def compute_prior_policy_log_probs(self, action):
@@ -114,14 +118,18 @@ class ALAC():
         lyapunov_value = self.actor_critic_agent.critic_lyapunov(state, action)
 
         # eq(16) l_prime
-        l_target = cost_reward + ( self.gamma * (1- terminal) * lyapunov_value_target.detach() )
+        l_target = cost_reward + ( self.gamma * (1- terminal) * lyapunov_value_target )
         l_error = ((l_target -  lyapunov_value)**2).mean()
         return l_error
 
     def compute_loss_pi(self, data):
-        state, action, _, new_state, _ = data['obs'], data['act'], data['rew'], data['obs2'], data['done']
+        '''
+         returns: actor loss and entropy
+        '''
+        state, action, new_state = data['obs'], data['act'], data['obs2']
 
         actor_policy, probalility_dist = self.actor_critic_agent.actor(new_state)
+        ent = actor_policy.entropy().mean().item()
         log_pi = probalility_dist.log_prob(actor_policy)
 
         lamda_e = self.lamda_e()
@@ -136,7 +144,7 @@ class ALAC():
         
 
         actor_loss = lamda_l * self.compute_L_delta(l_ = lyapunov_value_2, l = lyapunov_value)  +  lamda_e * log_pi.mean() - self.compute_prior_policy_log_probs(action)
-        return actor_loss
+        return actor_loss , ent
 
     def compute_lamda_l_loss(self, data):
         state, action,  new_state = data['obs'], data['act'], data['obs2']
@@ -167,6 +175,7 @@ class ALAC():
         self.lambda_l_optimizer.step()
         # do i need to clamp multiplier
         # self.lagrangian_multiplier.data.clamp_(0)  # enforce: lambda in [0, inf]
+        return lambda_loss
 
     def update_lagrange_multiplier_e(self, data):
         """ Update Lagrange multiplier (lambda_e)
@@ -177,23 +186,47 @@ class ALAC():
         self.lambda_e_optimizer.step()
         # do i need to clamp multiplier
         # self.lagrangian_multiplier.data.clamp_(0)  # enforce: lambda in [0, inf]
+        return lambda_loss.item()
 
-    def update(self, data):
+    def update_critic_lyapunov_net(self, data):
         self.critic_lyapunov_optimizer.zero_grad()
         loss_L = self.compute_critic_loss(data)
         loss_L.backward()
         self.critic_lyapunov_optimizer.step()
+        return loss_L.item()
 
+    def update_policy_net(self, data):
+          # Next run one gradient descent step for pi.
+        self.pi_optimizer.zero_grad()
+        loss_pi, ent = self.compute_loss_pi(data)
+        loss_pi.backward()
+        self.pi_optimizer.step()
+        return loss_pi.item(), ent.item()
+
+    def update_target_net(self):
+         # Finally, update target networks by polyak averaging.
+        with T.no_grad():
+            for p, p_targ in zip(self.actor_critic_agent.parameters(),self.actor_critic_agent_target.parameters()):
+                # NB: We use an in-place operations "mul_", "add_" to update target
+                # params, as opposed to "mul" and "add", which would make new tensors.
+                p_targ.data.mul_(self.tau)
+                p_targ.data.add_((1 - self.tau) * p.data)
+
+    def learning_rate_decay(self):
+        # impliment this to decay the lr 
+        pass
+
+    def update(self, data):
+    
+
+        critic_loss =  self.update_critic_lyapunov_net(data)
+       
         # Freeze Q-networks so you don't waste computational effort 
         # computing gradients for them during the policy learning step.
         for p in self.actor_critic_agent.critic_lyapunov.parameters():
             p.requires_grad = False
-
-        # Next run one gradient descent step for pi.
-        self.pi_optimizer.zero_grad()
-        loss_pi = self.compute_loss_pi(data)
-        loss_pi.backward()
-        self.pi_optimizer.step()
+        
+        pi_loss, ent = self.update_policy_net(data)
 
         # Unfreeze Q-networks so you can optimize it at next DDPG step.
         for p in self.actor_critic_agent.critic_lyapunov.parameters():
@@ -202,35 +235,35 @@ class ALAC():
         # Record things
         # writer.add_scalar("Loss_Pi", loss_pi.item(), n_update_step)
         # logger.store(LossPi=loss_pi.item(), **pi_info)
+        self.update_target_net()
+       
+        lamda_l_loss = self.update_lagrange_multiplier_l(data)
+        lamda_e_loss = self.update_lagrange_multiplier_e(data)
 
-        # Finally, update target networks by polyak averaging.
-        with T.no_grad():
-            for p, p_targ in zip(self.actor_critic_agent.parameters(),self.actor_critic_agent_target.parameters()):
-                # NB: We use an in-place operations "mul_", "add_" to update target
-                # params, as opposed to "mul" and "add", which would make new tensors.
-                p_targ.data.mul_(self.tau)
-                p_targ.data.add_((1 - self.tau) * p.data)
+        self.learning_rate_decay()
 
-        self.update_lagrange_multiplier_l(data)
-        self.update_lagrange_multiplier_e(data)
+        return pi_loss, ent, critic_loss, lamda_l_loss, lamda_e_loss
+
+        
 
 
 
     
 
 
-def train(variant):
-    env_name = variant["env_name"]
+def train(CONFIG):
+    env_name = CONFIG["env_name"]
+    logger = logger.EpochLogger()
    
     env = get_env_from_name(env_name)
-    env_params = variant['env_params']
+    env_params = CONFIG['env_params']
     max_episodes = env_params['max_episodes']
     max_ep_steps = env_params['max_ep_steps']
     max_global_steps = env_params['max_global_steps']
-    store_last_n_paths = variant['num_of_training_paths']
-    evaluation_frequency = variant['evaluation_frequency']
+    store_last_n_paths = CONFIG['num_of_training_paths']
+    evaluation_frequency = CONFIG['evaluation_frequency']
 
-    policy_params = variant['alg_params']
+    policy_params = CONFIG['alg_params']
     policy_params['network_structure'] = env_params['network_structure']
 
     memory_capacity = policy_params['memory_capacity'],
@@ -248,7 +281,7 @@ def train(variant):
         s_dim = env.observation_space.shape[0]
     a_dim = env.action_space.shape[0]
 
-    alac = ALAC(variant=variant)
+    alac = ALAC(a_dim = a_dim, s_dim = s_dim, CONFIG=CONFIG)
 
 
     should_render = env_params['eval_render']
@@ -261,7 +294,7 @@ def train(variant):
     replay_buffer = ReplayBuffer(obs_dim = s_dim,
                                  act_dim = a_dim, 
                                  size = memory_capacity)
-
+    log_path = CONFIG['log_path']
 
     for i in range(max_episodes):
         if global_step > max_global_steps:
@@ -296,6 +329,25 @@ def train(variant):
             
             replay_buffer.store(state, action, cost_reward, new_state, done)
 
+            if replay_buffer.memory_pointer > min_memory_size and global_step % steps_per_cycle == 0:
+                training_started = True
+
+                for _ in range(train_per_cycle):
+                    batch = replay_buffer.sample_batch(batch_size)
+                    pi_loss, ent, critic_loss, lamda_l_loss, lamda_e_loss = alac.update(batch)
+                    print("Pi loss ", pi_loss , "entropy ", ent, "Lyapunov loss ", critic_loss, \
+                                        "Lamda_l ", lamda_l_loss, "lamda_e ", lamda_e_loss)
+
+                    
+
             state = new_state
+
+
+            
+
+    # policy.save_result(log_path)
+
+    print('Running time: ', time.time() - t1)
+    return
 
             

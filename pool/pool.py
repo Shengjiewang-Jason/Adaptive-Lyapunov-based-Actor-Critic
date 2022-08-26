@@ -4,17 +4,17 @@ from copy import deepcopy
 
 class Pool(object):
 
-    def __init__(self, variant):
+    def __init__(self, CONFIG):
 
-        s_dim = variant['s_dim']
-        a_dim = variant['a_dim']
-        d_dim = variant['d_dim']
-        self.memory_capacity = variant['memory_capacity']
-        store_last_n_paths = variant['store_last_n_paths']
+        s_dim = CONFIG['s_dim']
+        a_dim = CONFIG['a_dim']
+        d_dim = CONFIG['d_dim']
+        self.memory_capacity = CONFIG['memory_capacity']
+        store_last_n_paths = CONFIG['store_last_n_paths']
         self.paths = deque(maxlen=store_last_n_paths)
         self.reset()
-        if 'history_horizon' in variant.keys():
-            self.history_horizon = variant['history_horizon']
+        if 'history_horizon' in CONFIG.keys():
+            self.history_horizon = CONFIG['history_horizon']
         else:
             self.history_horizon = 0
         self.memory = {
@@ -31,13 +31,13 @@ class Pool(object):
 
 
 
-        if 'finite_horizon' in variant.keys():
-            if variant['finite_horizon']:
+        if 'finite_horizon' in CONFIG.keys():
+            if CONFIG['finite_horizon']:
                 self.memory.update({'value': np.zeros([self.history_horizon+1, 1])}),
                 self.memory.update({'r_N_': np.zeros([self.history_horizon + 1, 1])}),
-                self.horizon = variant['value_horizon']
+                self.horizon = CONFIG['value_horizon']
         self.memory_pointer = 0
-        self.min_memory_size = variant['min_memory_size']
+        self.min_memory_size = CONFIG['min_memory_size']
 
     def reset(self):
         self.current_path = {

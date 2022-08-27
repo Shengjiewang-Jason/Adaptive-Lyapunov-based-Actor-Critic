@@ -4,14 +4,17 @@ from config import CONFIG, get_env_from_name,  get_train
 from eval import eval
 import torch
 
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" # count the device according to nvidia-smi command
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
 
 
 if __name__ == '__main__':
+
+    # log path
     root_dir = CONFIG['log_path']
+    # device
     CONFIG['device'] = device
+
     if CONFIG['train']:
         for i in range(CONFIG['start_of_trial'], CONFIG['start_of_trial']+CONFIG['num_of_trials']):
             CONFIG['log_path'] = root_dir +'/'+ str(i)

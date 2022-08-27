@@ -19,6 +19,7 @@ class ALAC():
         self.a_dim = a_dim
         self.target_entropy = policy_params['target_entropy']
 
+        self.device = CONFIG['device']
         
         # learning rate declerations
         self.lr_actor_network, self.lr_criric_network, self.lr_langrangian_multipliter = \
@@ -28,7 +29,7 @@ class ALAC():
         # declare networks and target networks
         actor_critic_Lyapunov = core.MLPActorCritic
         # Create actor-critic module and target networks
-        self.actor_critic_agent = actor_critic_Lyapunov(s_dim, action_space=a_dim).to(CONFIG)
+        self.actor_critic_agent = actor_critic_Lyapunov(s_dim, action_space=a_dim).to(self.device)
         self.actor_critic_agent_target = deepcopy(self.actor_critic_agent)
 
         #actor and critic optimizers
@@ -101,7 +102,7 @@ class ALAC():
         Function to select action with torch turned off
         used for evaluation and action take during simulation
         '''
-        return self.actor_critic_agent.act(T.as_tensor(state, dtype=T.float32), 
+        return self.actor_critic_agent.act(T.as_tensor(state, dtype=T.float32).to(self.device), 
                       deterministic)
 
     def compute_critic_loss(self, data):
@@ -217,7 +218,9 @@ class ALAC():
         pass
 
     def update(self, data):
-    
+        
+        # restore the data in the device
+        data = data.to(self.device)
 
         critic_loss =  self.update_critic_lyapunov_net(data)
        
@@ -242,13 +245,13 @@ class ALAC():
 
         self.learning_rate_decay()
 
-        return self.lambda_l().data().cpu().numpy(), 
-            self.lambda_e().data().cpu().numpy(), 
-            critic_loss.data().cpu().numpy(), 
-            ent.data().cpu().numpy(), 
-            pi_loss.data().cpu().numpy(),
-            lambda_l_loss.data().cpu().numpy(),
-            lambda_e_loss.data().cpu().numpy()
+        return self.lambda_l().data().cpu().numpy(), \
+                self.lambda_e().data().cpu().numpy(), \
+                critic_loss.data().cpu().numpy(),  \
+                ent.data().cpu().numpy(),  \
+                pi_loss.data().cpu().numpy(),  \
+                lambda_l_loss.data().cpu().numpy(), \
+                lambda_e_loss.data().cpu().numpy() 
 
 
 

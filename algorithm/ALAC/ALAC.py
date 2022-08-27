@@ -244,9 +244,9 @@ class ALAC():
 
         return self.lambda_l().data().cpu().numpy(), 
             self.lambda_e().data().cpu().numpy(), 
-            loss_L.data().cpu().numpy(), 
-            self.entropy.data().cpu().numpy(), 
-            loss_pi.data().cpu().numpy(),
+            critic_loss.data().cpu().numpy(), 
+            ent.data().cpu().numpy(), 
+            pi_loss.data().cpu().numpy(),
             lambda_l_loss.data().cpu().numpy(),
             lambda_e_loss.data().cpu().numpy()
 

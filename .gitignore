@@ -5,3 +5,6 @@ log_plot/
 .idea/
 .vscode/
 __pycache__/
+*.pyc
+*/__pycache__/
+.DS_Store

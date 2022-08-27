@@ -344,7 +344,7 @@ def eval(CONFIG):
             CONFIG['alg_params'] = ALG_PARAMS['ALAC']
             CONFIG['algorithm_name'] = 'ALAC'
         print('evaluating '+name)
-        if VARIANT['evaluation_form'] == 'constant_impulse':
-            constant_impulse(VARIANT)
+        if EVAL_PARAMS['evaluation_form'] == 'constant_impulse':
+            constant_impulse(CONFIG)
 
 

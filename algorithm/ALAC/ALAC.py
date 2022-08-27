@@ -8,20 +8,19 @@ from torch.optim import Adam
 import torch.optim as optim
 import time
 from collections import OrderedDict, deque
-import logger
+from common import logger
 class ALAC():
-    def __init__(self, a_dim, s_dim, CONFIG, seed = 0,
+    def __init__(self, a_dim, s_dim, policy_params,
                 action_prior = "uniform", lambda_optimizer: str = 'Adam') -> None:
         self.SCALE_lambda_MIN_MAX = (0, 1)
-        self.gamma = CONFIG['gamma']
-        self.tau = CONFIG['tau'] # value for plymac update
+        self.gamma = policy_params['gamma']
+        self.tau = policy_params['tau'] # value for plymac update
         self.action_prior = action_prior
         self.a_dim = a_dim
-        self.target_entropy = CONFIG['target_entropy']
+        self.target_entropy = policy_params['target_entropy']
 
         
         # learning rate declerations
-        policy_params = variant['alg_params']
         self.lr_actor_network, self.lr_criric_network, self.lr_langrangian_multipliter = \
             policy_params['lr_a'], policy_params['lr_c'], policy_params['lr_l']
 
@@ -29,7 +28,7 @@ class ALAC():
         # declare networks and target networks
         actor_critic_Lyapunov = core.MLPActorCritic
         # Create actor-critic module and target networks
-        self.actor_critic_agent = actor_critic_Lyapunov(s_dim, action_space=a_dim)
+        self.actor_critic_agent = actor_critic_Lyapunov(s_dim, action_space=a_dim).to(CONFIG)
         self.actor_critic_agent_target = deepcopy(self.actor_critic_agent)
 
         #actor and critic optimizers
@@ -37,52 +36,52 @@ class ALAC():
         self.critic_lyapunov_optimizer = Adam(self.actor_critic_agent.critic_lyapunov.parameters(), lr=self.lr_criric_network)
 
 
-        #declare lagrange multipliers and optimizers lamda_l and lamda_e
+        #declare lagrange multipliers and optimizers lambda_l and lambda_e
        
-        labda_l = CONFIG['labda']
-        labda_e = CONFIG['alpha']
+        lambda_l = policy_params['lambda_l']
+        lambda_e = policy_params['lambda_e']
 
-        self.log_lamda_l = T.nn.Parameter(
-                        T.as_tensor(T.log(labda_l)),
+        self.log_lambda_l = T.nn.Parameter(
+                        T.as_tensor(T.log(lambda_l)),
                         requires_grad=True)
 
         torch_opt = getattr(optim, lambda_optimizer)
 
-        # optimiser for lamda_l
-        self.lambda_l_optimizer = torch_opt([self.log_lamda_l, ],
+        # optimiser for lambda_l
+        self.lambda_l_optimizer = torch_opt([self.log_lambda_l, ],
                                         lr=self.lr_langrangian_multipliter)
 
 
-        self.log_lamda_e =  T.nn.Parameter(
-                            T.as_tensor(T.log(labda_e)),
+        self.log_lambda_e =  T.nn.Parameter(
+                            T.as_tensor(T.log(lambda_e)),
                             requires_grad=True)
-        # optimiser for lamda_e
-        self.lambda_e_optimizer = torch_opt([self.log_lamda_e, ],
+        # optimiser for lambda_e
+        self.lambda_e_optimizer = torch_opt([self.log_lambda_e, ],
                                         lr=self.lr_langrangian_multipliter)
 
-    def lamda_e(self):
+    def lambda_e(self):
         '''
-            return : lamda_e  using learned lamda parameter
+            return : lambda_e  using learned lambda parameter
         '''
-        return T.exp(self.log_lamda_e)
+        return T.exp(self.log_lambda_e)
 
-    def lamda_l(self):
+    def lambda_l(self):
         '''
-            return : lamda_l  using learned lamda parameter
+            return : lambda_l  using learned lambda parameter
         '''
-        return T.clamp(T.exp(self.log_lamda_l), *self.SCALE_lambda_MIN_MAX)
+        return T.clamp(T.exp(self.log_lambda_l), *self.SCALE_lambda_MIN_MAX)
 
     def compute_L_delta(self, l_, l):
         '''
         page 7 to compute delta L
-        value of k_l :page 7 is chosen as (1 - lamda_bar)
+        value of k_l :page 7 is chosen as (1 - lambda_bar)
         '''
-        lamda_l = lamda_l()
-        k_l = 1 - lamda_l
+        lambda_l = lambda_l()
+        k_l = 1 - lambda_l
         l_delta_1 = (l_ - l + (k_l) *(l - 0)).mean()
         l_delta_2 = (l_ - l + (k_l) *(l - l_)).mean()
 
-        l_delta = (k_l) * l_delta_1 + lamda_l * l_delta_2
+        l_delta = (k_l) * l_delta_1 + lambda_l * l_delta_2
         
         return l_delta
 
@@ -130,8 +129,8 @@ class ALAC():
         ent = actor_policy.entropy().mean().item()
         log_pi = probalility_dist.log_prob(actor_policy)
 
-        lamda_e = self.lamda_e()
-        lamda_l = self.lamda_l()
+        lambda_e = self.lambda_e()
+        lambda_l = self.lambda_l()
 
 
         # actor_policy, _ = self.actor_critic_agent.actor(new_state) 
@@ -141,10 +140,10 @@ class ALAC():
         lyapunov_value = self.actor_critic_agent.critic_lyapunov(state, action)
         
 
-        actor_loss = lamda_l * self.compute_L_delta(l_ = lyapunov_value_2, l = lyapunov_value)  +  lamda_e * log_pi.mean() - self.compute_prior_policy_log_probs(action)
+        actor_loss = lambda_l * self.compute_L_delta(l_ = lyapunov_value_2, l = lyapunov_value)  +  lambda_e * log_pi.mean() - self.compute_prior_policy_log_probs(action)
         return actor_loss , ent
 
-    def compute_lamda_l_loss(self, data):
+    def compute_lambda_l_loss(self, data):
         state, action,  new_state = data['obs'], data['act'], data['obs2']
 
         actor_policy, _ = self.actor_critic_agent.actor(new_state) 
@@ -153,9 +152,9 @@ class ALAC():
         
         lyapunov_value = self.actor_critic_agent.critic_lyapunov(state, action)
 
-        return -(self.log_lamda_l * self.compute_L_delta(l_ = lyapunov_value_2, l = lyapunov_value)).mean()
+        return -(self.log_lambda_l * self.compute_L_delta(l_ = lyapunov_value_2, l = lyapunov_value)).mean()
 
-    def compute_lamda_e_loss(self, data):
+    def compute_lambda_e_loss(self, data):
         new_state =  data['obs2']
         actor_policy, probalility_dist = self.actor_critic_agent.actor(new_state)
         log_pi = probalility_dist.log_prob(actor_policy)
@@ -163,7 +162,7 @@ class ALAC():
         # record entropy
         self.entropy = - log_pi.mean()
 
-        return -(self.log_lamda_e * (log_pi + self.target_entropy)).mean()
+        return -(self.log_lambda_e * (log_pi + self.target_entropy)).mean()
   
     def update_lagrange_multiplier_l(self, data):
         """ Update Lagrange multiplier (lambda_e)
@@ -171,7 +170,7 @@ class ALAC():
         """
        
         self.lambda_l_optimizer.zero_grad()
-        lambda_loss = self.compute_lamda_l_loss(data)
+        lambda_loss = self.compute_lambda_l_loss(data)
         lambda_loss.backward()
         self.lambda_l_optimizer.step()
         # do i need to clamp multiplier
@@ -182,7 +181,7 @@ class ALAC():
         """ Update Lagrange multiplier (lambda_e)
         """
         self.lambda_e_optimizer.zero_grad()
-        lambda_loss = self.compute_lamda_e_loss(data)
+        lambda_loss = self.compute_lambda_e_loss(data)
         lambda_loss.backward()
         self.lambda_e_optimizer.step()
         # do i need to clamp multiplier
@@ -238,20 +237,18 @@ class ALAC():
         # logger.store(LossPi=loss_pi.item(), **pi_info)
         self.update_target_net()
        
-        lamda_l_loss = self.update_lagrange_multiplier_l(data)
-        lamda_e_loss = self.update_lagrange_multiplier_e(data)
+        lambda_l_loss = self.update_lagrange_multiplier_l(data)
+        lambda_e_loss = self.update_lagrange_multiplier_e(data)
 
         self.learning_rate_decay()
 
-        return pi_loss, ent, critic_loss, lamda_l_loss, lamda_e_loss
-
-        
-
-        return self.lamda_l().data().cpu().numpy(), 
-            self.lamda_e().data().cpu().numpy(), 
+        return self.lambda_l().data().cpu().numpy(), 
+            self.lambda_e().data().cpu().numpy(), 
             loss_L.data().cpu().numpy(), 
             self.entropy.data().cpu().numpy(), 
-            loss_pi.data().cpu().numpy()
+            loss_pi.data().cpu().numpy(),
+            lambda_l_loss.data().cpu().numpy(),
+            lambda_e_loss.data().cpu().numpy()
 
 
 

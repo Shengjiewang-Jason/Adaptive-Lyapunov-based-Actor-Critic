@@ -215,10 +215,6 @@ def get_env_from_name(name):
     env.seed(SEED)
     return env
 
-def get_train(name):
-    if 'ALAC' in name:
-        from algorithm.ALAC.ALAC import train 
-    return train
 
 def get_policy(name):
     if 'ALAC' in name:

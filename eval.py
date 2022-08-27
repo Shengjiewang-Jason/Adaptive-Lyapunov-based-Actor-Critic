@@ -1,5 +1,5 @@
 import os
-from CONFIG import *
+from config import *
 import numpy as np
 import time
 import logger

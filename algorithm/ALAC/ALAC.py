@@ -2,24 +2,27 @@ from cProfile import label
 from webbrowser import get
 import torch as T
 import numpy as np
-import core
+import models.core as core
 from copy import deepcopy
 from torch.optim import Adam
 import torch.optim as optim
-import time
-from collections import OrderedDict, deque
-from common import logger
 class ALAC():
-    def __init__(self, a_dim, s_dim, policy_params,
+    def __init__(self, a_dim, s_dim, policy_params, device,
                 action_prior = "uniform", lambda_optimizer: str = 'Adam') -> None:
         self.SCALE_lambda_MIN_MAX = (0, 1)
         self.gamma = policy_params['gamma']
         self.tau = policy_params['tau'] # value for plymac update
         self.action_prior = action_prior
         self.a_dim = a_dim
-        self.target_entropy = policy_params['target_entropy']
 
-        self.device = CONFIG['device']
+        if policy_params['target_entropy'] == None:
+            target_entropy =  - a_dim
+        else:
+            target_entropy = policy_params['target_entropy'] 
+
+        self.target_entropy = T.as_tensor([target_entropy],dtype=T.float32)
+
+        self.device = device
         
         # learning rate declerations
         self.lr_actor_network, self.lr_criric_network, self.lr_langrangian_multipliter = \
@@ -43,8 +46,8 @@ class ALAC():
         lambda_e = policy_params['lambda_e']
 
         self.log_lambda_l = T.nn.Parameter(
-                        T.as_tensor(T.log(lambda_l)),
-                        requires_grad=True)
+                        T.as_tensor(np.log(lambda_l)),
+                        requires_grad=True).to(self.device)
 
         torch_opt = getattr(optim, lambda_optimizer)
 
@@ -54,19 +57,19 @@ class ALAC():
 
 
         self.log_lambda_e =  T.nn.Parameter(
-                            T.as_tensor(T.log(lambda_e)),
-                            requires_grad=True)
+                            T.as_tensor(np.log(lambda_e)),
+                            requires_grad=True).to(self.device)
         # optimiser for lambda_e
         self.lambda_e_optimizer = torch_opt([self.log_lambda_e, ],
                                         lr=self.lr_langrangian_multipliter)
 
-    def lambda_e(self):
+    def lambda_e_op(self):
         '''
             return : lambda_e  using learned lambda parameter
         '''
         return T.exp(self.log_lambda_e)
 
-    def lambda_l(self):
+    def lambda_l_op(self):
         '''
             return : lambda_l  using learned lambda parameter
         '''
@@ -77,7 +80,7 @@ class ALAC():
         page 7 to compute delta L
         value of k_l :page 7 is chosen as (1 - lambda_bar)
         '''
-        lambda_l = lambda_l()
+        lambda_l = self.lambda_l_op()
         k_l = 1 - lambda_l
         l_delta_1 = (l_ - l + (k_l) *(l - 0)).mean()
         l_delta_2 = (l_ - l + (k_l) *(l - l_)).mean()
@@ -127,11 +130,11 @@ class ALAC():
         state, action, new_state = data['obs'], data['act'], data['obs2']
 
         actor_policy, probalility_dist = self.actor_critic_agent.actor(new_state)
-        ent = actor_policy.entropy().mean().item()
+        ent = probalility_dist.entropy().mean()
         log_pi = probalility_dist.log_prob(actor_policy)
 
-        lambda_e = self.lambda_e()
-        lambda_l = self.lambda_l()
+        lambda_e = self.lambda_e_op()
+        lambda_l = self.lambda_l_op()
 
 
         # actor_policy, _ = self.actor_critic_agent.actor(new_state) 
@@ -159,9 +162,6 @@ class ALAC():
         new_state =  data['obs2']
         actor_policy, probalility_dist = self.actor_critic_agent.actor(new_state)
         log_pi = probalility_dist.log_prob(actor_policy)
-        
-        # record entropy
-        self.entropy = - log_pi.mean()
 
         return -(self.log_lambda_e * (log_pi + self.target_entropy)).mean()
   
@@ -176,7 +176,7 @@ class ALAC():
         self.lambda_l_optimizer.step()
         # do i need to clamp multiplier
         # self.lagrangian_multiplier.data.clamp_(0)  # enforce: lambda in [0, inf]
-        return lambda_loss
+        return lambda_loss.item()
 
     def update_lagrange_multiplier_e(self, data):
         """ Update Lagrange multiplier (lambda_e)
@@ -219,9 +219,6 @@ class ALAC():
 
     def update(self, data):
         
-        # restore the data in the device
-        data = data.to(self.device)
-
         critic_loss =  self.update_critic_lyapunov_net(data)
        
         # Freeze Q-networks so you don't waste computational effort 
@@ -245,13 +242,10 @@ class ALAC():
 
         self.learning_rate_decay()
 
-        return self.lambda_l().data().cpu().numpy(), \
-                self.lambda_e().data().cpu().numpy(), \
-                critic_loss.data().cpu().numpy(),  \
-                ent.data().cpu().numpy(),  \
-                pi_loss.data().cpu().numpy(),  \
-                lambda_l_loss.data().cpu().numpy(), \
-                lambda_e_loss.data().cpu().numpy() 
+
+        return self.lambda_l_op().detach().cpu().numpy(), \
+                self.lambda_e_op().detach().cpu().numpy(), \
+                critic_loss, ent, pi_loss, lambda_l_loss, lambda_e_loss
 
 
 

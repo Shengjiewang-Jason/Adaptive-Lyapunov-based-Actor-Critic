@@ -71,16 +71,15 @@ class MLPGaussianActor(nn.Module):
         return pi_action, pi_distribution
 
 
-
-
 class MLPCriticLyapunov(nn.Module):
 
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation):
         super().__init__()
-        self.v_net = mlp([obs_dim] + [act_dim] + list(hidden_sizes) + [1], activation)
+        self.v_net = mlp([obs_dim + act_dim] + list(hidden_sizes) + [1], activation)
 
-    def forward(self, obs):
-        return torch.squeeze(self.v_net(obs), -1) # Critical to ensure v has right shape.
+    def forward(self, obs, act):
+        obs_act = torch.cat([obs,act],dim = -1)
+        return torch.squeeze(self.v_net(obs_act), -1) # Critical to ensure v has right shape.
 
 class MLPActorCritic(nn.Module):
 
@@ -88,9 +87,9 @@ class MLPActorCritic(nn.Module):
                  activation=nn.ReLU):
         super().__init__()
 
-        obs_dim = observation_space.shape[0]
-        act_dim = action_space.shape[0]
-        act_limit = action_space.high[0]
+        obs_dim = observation_space
+        act_dim = action_space
+        act_limit = action_space
 
         # build policy and value functions
         self.actor = MLPGaussianActor(obs_dim, act_dim, hidden_sizes, activation, act_limit)

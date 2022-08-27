@@ -1,7 +1,11 @@
+import time
 import numpy as np
 from pool.memory import ReplayBuffer 
-from variant import get_env_from_name, ALG_PARAMS
-from logger.logger import logger
+from config import *
+from logger.logger import configure, logkv, dumpkvs
+import copy
+from collections import OrderedDict, deque
+from eval import *
 
 def train(CONFIG):
     # get env name and algo name
@@ -20,11 +24,20 @@ def train(CONFIG):
     # policy params
     policy_params = ALG_PARAMS[policy_name]
     policy_params['network_structure'] = env_params['network_structure']
-    memory_capacity = policy_params['memory_capacity'],
+    memory_capacity = policy_params['memory_capacity']
     min_memory_size = policy_params['min_memory_size']
     steps_per_cycle = policy_params['steps_per_cycle']
     train_per_cycle = policy_params['train_per_cycle']
     batch_size = policy_params['batch_size']
+
+    # learning rate
+    lr_a = policy_params['lr_a']
+    lr_c = policy_params['lr_c']
+    lr_l = policy_params['lr_l']
+
+    # devide params 
+    device = CONFIG['device']
+
 
     if 'Fetch' in env_name or 'Hand' in env_name:
         s_dim = env.observation_space.spaces['observation'].shape[0]\
@@ -34,7 +47,9 @@ def train(CONFIG):
         s_dim = env.observation_space.shape[0]
     a_dim = env.action_space.shape[0]
 
-    policy = eval(policy_name)(a_dim, s_dim ,policy_params)
+    build_func = get_policy(CONFIG['algorithm_name'])
+
+    policy = build_func(a_dim, s_dim ,policy_params, device)
 
     should_render = env_params['eval_render']
 
@@ -44,12 +59,12 @@ def train(CONFIG):
     training_started = False
 
     log_path = CONFIG['log_path']
-    logger.configure(dir=log_path, format_strs=['csv'])
-    logger.logkv('tau', policy_params['tau'])
+    configure(dir=log_path, format_strs=['csv'])
+    logkv('tau', policy_params['tau'])
 
     replay_buffer = ReplayBuffer(obs_dim = s_dim,
                                  act_dim = a_dim, 
-                                 size = memory_capacity)
+                                 size = memory_capacity, device = device )
 
 
     for i in range(max_episodes):
@@ -85,8 +100,11 @@ def train(CONFIG):
 
             if 'Fetch' in env_name or 'Hand' in env_name:
                 new_state = np.concatenate([new_state[key] for key in new_state.keys()])
-            if info['done'] > 0:
+            try :
+                if info['done'] > 0:
                     done = True
+            except:
+                pass
             
             if training_started:
                 global_step+=1
@@ -103,11 +121,12 @@ def train(CONFIG):
 
                 for _ in range(train_per_cycle):
                     batch = replay_buffer.sample_batch(batch_size)
-                    lambda_l, lambda_e, loss_L, entropy, a_loss,lambda_l_loss,lambda_e_loss  = policy.update(batch)
+                    lambda_l, lambda_e, critic_loss, entropy, pi_loss, lambda_l_loss,lambda_e_loss  = policy.update(batch)
 
             if training_started:
                 current_path['cost_reward'].append(cost_reward)
-                current_path['lyapunov_error'].append(l_loss)
+                current_path['lyapunov_error'].append(critic_loss)
+                current_path['a_loss'].append(pi_loss)
                 current_path['lambda_e'].append(lambda_e)
                 current_path['lambda_l'].append(lambda_l)
                 current_path['entropy'].append(entropy)
@@ -116,18 +135,18 @@ def train(CONFIG):
 
             if training_started and global_step % evaluation_frequency == 0 and global_step > 0:
     
-                logger.logkv("total_timesteps", global_step)
+                logkv("total_timesteps", global_step)
 
                 training_diagnotic = evaluate_training_rollouts(last_training_paths)
                 if training_diagnotic is not None:
                     if CONFIG['num_of_evaluation_paths'] > 0:
-                        eval_diagnotic = training_evaluation(variant, env, policy)
-                        [logger.logkv(key, eval_diagnotic[key]) for key in eval_diagnotic.keys()]
+                        eval_diagnotic = training_evaluation(CONFIG, env, policy)
+                        [logkv(key, eval_diagnotic[key]) for key in eval_diagnotic.keys()]
                         training_diagnotic.pop('return')
-                    [logger.logkv(key, training_diagnotic[key]) for key in training_diagnotic.keys()]
-                    logger.logkv('lr_a', lr_a_now)
-                    logger.logkv('lr_c', lr_c_now)
-                    logger.logkv('lr_l', lr_l_now)
+                    [logkv(key, training_diagnotic[key]) for key in training_diagnotic.keys()]
+                    logkv('lr_a', lr_a_now)
+                    logkv('lr_c', lr_c_now)
+                    logkv('lr_l', lr_l_now)
 
                     string_to_print = ['time_step:', str(global_step), '|']
                     if CONFIG['num_of_evaluation_paths'] > 0:
@@ -137,7 +156,7 @@ def train(CONFIG):
                      for key in training_diagnotic.keys()]
                     print(''.join(string_to_print))
 
-                logger.dumpkvs()
+                dumpkvs()
                 
             # OUTPUT TRAINING INFORMATION AND LEARNING RATE DECAY
             if done:
@@ -145,7 +164,7 @@ def train(CONFIG):
                     last_training_paths.appendleft(current_path)
 
                 frac = 1.0 - (global_step - 1.0) / max_global_steps
-                if CONFIG['algorithm_name'] is in ['ALAC']:  # can be expanded
+                if CONFIG['algorithm_name'] in ['ALAC']:  # can be expanded
                     policy.lr_actor_network = lr_a_now = lr_a * frac  # learning rate for actor
                     policy.lr_criric_network = lr_c_now = lr_c * frac  # learning rate for critic
                     policy.lr_langrangian_multipliter = lr_l_now = lr_l * frac  # learning rate for critic

@@ -3,14 +3,12 @@ from webbrowser import get
 import torch as T
 import numpy as np
 import core
-from config import get_env_from_name
 from copy import deepcopy
 from torch.optim import Adam
-from memory import  ReplayBuffer
 import torch.optim as optim
 import time
 from collections import OrderedDict, deque
-from common import logger
+import logger
 class ALAC():
     def __init__(self, a_dim, s_dim, CONFIG, seed = 0,
                 action_prior = "uniform", lambda_optimizer: str = 'Adam') -> None:
@@ -23,8 +21,8 @@ class ALAC():
 
         
         # learning rate declerations
-        policy_params = CONFIG['alg_params']
-        lr_actor_network, lr_criric_network, lr_langrangian_multipliter = \
+        policy_params = variant['alg_params']
+        self.lr_actor_network, self.lr_criric_network, self.lr_langrangian_multipliter = \
             policy_params['lr_a'], policy_params['lr_c'], policy_params['lr_l']
 
 
@@ -35,8 +33,8 @@ class ALAC():
         self.actor_critic_agent_target = deepcopy(self.actor_critic_agent)
 
         #actor and critic optimizers
-        self.pi_optimizer = Adam(self.actor_critic_agent.actor.parameters(), lr=lr_actor_network)
-        self.critic_lyapunov_optimizer = Adam(self.actor_critic_agent.critic_lyapunov.parameters(), lr=lr_criric_network)
+        self.pi_optimizer = Adam(self.actor_critic_agent.actor.parameters(), lr=self.lr_actor_network)
+        self.critic_lyapunov_optimizer = Adam(self.actor_critic_agent.critic_lyapunov.parameters(), lr=self.lr_criric_network)
 
 
         #declare lagrange multipliers and optimizers lamda_l and lamda_e
@@ -52,7 +50,7 @@ class ALAC():
 
         # optimiser for lamda_l
         self.lambda_l_optimizer = torch_opt([self.log_lamda_l, ],
-                                        lr=lr_langrangian_multipliter)
+                                        lr=self.lr_langrangian_multipliter)
 
 
         self.log_lamda_e =  T.nn.Parameter(
@@ -60,7 +58,7 @@ class ALAC():
                             requires_grad=True)
         # optimiser for lamda_e
         self.lambda_e_optimizer = torch_opt([self.log_lamda_e, ],
-                                        lr=lr_langrangian_multipliter)
+                                        lr=self.lr_langrangian_multipliter)
 
     def lamda_e(self):
         '''
@@ -161,6 +159,9 @@ class ALAC():
         new_state =  data['obs2']
         actor_policy, probalility_dist = self.actor_critic_agent.actor(new_state)
         log_pi = probalility_dist.log_prob(actor_policy)
+        
+        # record entropy
+        self.entropy = - log_pi.mean()
 
         return -(self.log_lamda_e * (log_pi + self.target_entropy)).mean()
   
@@ -246,108 +247,20 @@ class ALAC():
 
         
 
+        return self.lamda_l().data().cpu().numpy(), 
+            self.lamda_e().data().cpu().numpy(), 
+            loss_L.data().cpu().numpy(), 
+            self.entropy.data().cpu().numpy(), 
+            loss_pi.data().cpu().numpy()
+
 
 
     
 
 
-def train(CONFIG):
-    env_name = CONFIG["env_name"]
-    logger = logger.EpochLogger()
-   
-    env = get_env_from_name(env_name)
-    env_params = CONFIG['env_params']
-    max_episodes = env_params['max_episodes']
-    max_ep_steps = env_params['max_ep_steps']
-    max_global_steps = env_params['max_global_steps']
-    store_last_n_paths = CONFIG['num_of_training_paths']
-    evaluation_frequency = CONFIG['evaluation_frequency']
-
-    policy_params = CONFIG['alg_params']
-    policy_params['network_structure'] = env_params['network_structure']
-
-    memory_capacity = policy_params['memory_capacity'],
-
-    min_memory_size = policy_params['min_memory_size']
-    steps_per_cycle = policy_params['steps_per_cycle']
-    train_per_cycle = policy_params['train_per_cycle']
-    batch_size = policy_params['batch_size']
-
-    if 'Fetch' in env_name or 'Hand' in env_name:
-        s_dim = env.observation_space.spaces['observation'].shape[0]\
-                + env.observation_space.spaces['achieved_goal'].shape[0]+ \
-                env.observation_space.spaces['desired_goal'].shape[0]
-    else:
-        s_dim = env.observation_space.shape[0]
-    a_dim = env.action_space.shape[0]
-
-    alac = ALAC(a_dim = a_dim, s_dim = s_dim, CONFIG=CONFIG)
+         
 
 
-    should_render = env_params['eval_render']
-
-    t1 = time.time()
-    global_step = 0
-    last_training_paths = deque(maxlen=store_last_n_paths)
-    training_started = False
-
-    replay_buffer = ReplayBuffer(obs_dim = s_dim,
-                                 act_dim = a_dim, 
-                                 size = memory_capacity)
-    log_path = CONFIG['log_path']
-
-    for i in range(max_episodes):
-        if global_step > max_global_steps:
-            break
-
-
-        state = env.reset()
-        if 'Fetch' in env_name or 'Hand' in env_name:
-            state = np.concatenate([state[key] for key in state.keys()])
-
-        for j in range(max_ep_steps):
-            if should_render:
-                env.render()
-
-            action = alac.choose_action(state)
-
-            #not sure if i should impliment the bound thing here as i already 
-            #multiply action by the bound
-
-            new_state , cost_reward, done , info = env.step(action)
-
-            if 'Fetch' in env_name or 'Hand' in env_name:
-                new_state = np.concatenate([new_state[key] for key in new_state.keys()])
-            if info['done'] > 0:
-                    done = True
-            
-            if training_started:
-                global_step+=1
-
-            if j == max_ep_steps - 1:
-                done = True
-            
-            replay_buffer.store(state, action, cost_reward, new_state, done)
-
-            if replay_buffer.memory_pointer > min_memory_size and global_step % steps_per_cycle == 0:
-                training_started = True
-
-                for _ in range(train_per_cycle):
-                    batch = replay_buffer.sample_batch(batch_size)
-                    pi_loss, ent, critic_loss, lamda_l_loss, lamda_e_loss = alac.update(batch)
-                    print("Pi loss ", pi_loss , "entropy ", ent, "Lyapunov loss ", critic_loss, \
-                                        "Lamda_l ", lamda_l_loss, "lamda_e ", lamda_e_loss)
-
-                    
-
-            state = new_state
-
-
-            
-
-    # policy.save_result(log_path)
-
-    print('Running time: ', time.time() - t1)
-    return
+        
 
             

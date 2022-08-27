@@ -1,4 +1,3 @@
-import tensorflow as tf
 import os
 from CONFIG import *
 import numpy as np
@@ -345,8 +344,7 @@ def eval(CONFIG):
             CONFIG['alg_params'] = ALG_PARAMS['ALAC']
             CONFIG['algorithm_name'] = 'ALAC'
         print('evaluating '+name)
-        if CONFIG['evaluation_form'] == 'constant_impulse':
-            constant_impulse(CONFIG)
-        tf.reset_default_graph()
+        if VARIANT['evaluation_form'] == 'constant_impulse':
+            constant_impulse(VARIANT)
 
 

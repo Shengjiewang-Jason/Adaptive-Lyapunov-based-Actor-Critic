@@ -218,12 +218,12 @@ def get_env_from_name(name):
 
 def get_train(name):
     if 'ALAC' in name:
-        from ALAC.ALAC import train 
+        from algorithm.ALAC.ALAC import train 
     return train
 
 def get_policy(name):
     if 'ALAC' in name:
-        from ALAC.ALAC import ALAC as build_func
+        from algorithm.ALAC.ALAC import ALAC as build_func
     return build_func
 
 

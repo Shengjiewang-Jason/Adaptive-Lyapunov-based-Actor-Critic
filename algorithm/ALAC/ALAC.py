@@ -242,7 +242,7 @@ class ALAC():
 
         self.learning_rate_decay()
 
-<<<<<<< Updated upstream
+
         return self.lambda_l().data().cpu().numpy(), 
             self.lambda_e().data().cpu().numpy(), 
             critic_loss.data().cpu().numpy(), 
@@ -250,15 +250,6 @@ class ALAC():
             pi_loss.data().cpu().numpy(),
             lambda_l_loss.data().cpu().numpy(),
             lambda_e_loss.data().cpu().numpy()
-=======
-        return self.lambda_l().data().cpu().numpy(), \
-            self.lambda_e().data().cpu().numpy(), \
-            loss_L.data().cpu().numpy(), \
-            self.entropy.data().cpu().numpy(), \
-            loss_pi.data().cpu().numpy(),\
-            lambda_l_loss.data().cpu().numpy(),\
-            lambda_e_loss.data().cpu().numpy()\
->>>>>>> Stashed changes
 
 
 

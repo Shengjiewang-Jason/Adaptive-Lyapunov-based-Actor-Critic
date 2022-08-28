@@ -40,9 +40,9 @@ python main.py
 ```
 Hyperparameters for training ALAC are ready to run by default. 
 
-If you want to test other environments, please open variant.py and modify corresponding 'env_name'. For the names of environment see the following part.
+If you want to test other environments, please open CONFIG.py and modify corresponding 'env_name'. For the names of environment see the following part.
 
-For evaluation, you can choose `'train': False,` in `variant.py`, and then run `python main.py `. 
+For evaluation, you can choose `'train': False,` in `CONFIG.py`, and then run `python main.py `. 
 
 
 

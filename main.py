@@ -1,25 +1,28 @@
 import imp
-import tensorflow as tf
 import os
-from variant import VARIANT, get_env_from_name,  get_train
+from config import *
 from eval import eval
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+from train import train
+import torch
 
-tf.device('/gpu:1')
-
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" # count the device according to nvidia-smi command
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
+print(torch.__version__);
+print(torch.cuda.is_available())
 
 if __name__ == '__main__':
-    root_dir = VARIANT['log_path']
-    if VARIANT['train']:
-        for i in range(VARIANT['start_of_trial'], VARIANT['start_of_trial']+VARIANT['num_of_trials']):
-            VARIANT['log_path'] = root_dir +'/'+ str(i)
-            print('logging to ' + VARIANT['log_path'])
-            train = get_train(VARIANT['algorithm_name'])
-            train(VARIANT)
 
-            tf.reset_default_graph()
+    # log path
+    root_dir = CONFIG['log_path']
+    # device
+    CONFIG['device'] = device
+
+    if CONFIG['train']:
+        for i in range(CONFIG['start_of_trial'], CONFIG['start_of_trial']+CONFIG['num_of_trials']):
+            CONFIG['log_path'] = root_dir +'/'+ str(i)
+            print('logging to ' + CONFIG['log_path'])
+            train(CONFIG)
     else:
-        # eval = get_eval(VARIANT['algorithm_name'])
-        eval(VARIANT)
+        # eval = get_eval(CONFIG['algorithm_name'])
+        eval(CONFIG)
 

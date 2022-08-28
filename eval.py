@@ -1,6 +1,5 @@
-import tensorflow as tf
 import os
-from variant import *
+from config import *
 import numpy as np
 import time
 import logger
@@ -129,30 +128,30 @@ def humanoid_disturber(time, s, action, env, eval_params, form_of_eval, disturbe
 
 
 
-def constant_impulse(variant):
-    env_name = variant['env_name']
+def constant_impulse(CONFIG):
+    env_name = CONFIG['env_name']
     env = get_env_from_name(env_name)
-    env_params = variant['env_params']
+    env_params = CONFIG['env_params']
 
-    eval_params = variant['eval_params']
-    policy_params = variant['alg_params']
+    eval_params = CONFIG['eval_params']
+    policy_params = CONFIG['alg_params']
     policy_params['network_structure'] = env_params['network_structure']
 
-    build_func = get_policy(variant['algorithm_name'])
+    build_func = get_policy(CONFIG['algorithm_name'])
 
     s_dim = env.observation_space.shape[0]
     a_dim = env.action_space.shape[0]
     policy = build_func(a_dim, s_dim, policy_params)
     # disturber = Disturber(d_dim, s_dim, disturber_params)
 
-    log_path = variant['log_path'] + '/eval/constant_impulse'
-    variant['eval_params'].update({'magnitude': 0})
+    log_path = CONFIG['log_path'] + '/eval/constant_impulse'
+    CONFIG['eval_params'].update({'magnitude': 0})
     logger.configure(dir=log_path, format_strs=['csv'])
     for magnitude in eval_params['magnitude_range']:
-        variant['eval_params']['magnitude'] = magnitude
+        CONFIG['eval_params']['magnitude'] = magnitude
         
         npy_path = log_path + '/magnitude_{}'.format(magnitude)
-        diagnostic_dict, _ = evaluation(variant, env, policy,npy_path)
+        diagnostic_dict, _ = evaluation(CONFIG, env, policy,npy_path)
 
         string_to_print = ['magnitude', ':', str(magnitude), '|']
         [string_to_print.extend([key, ':', str(round(diagnostic_dict[key], 2)), '|'])
@@ -164,14 +163,14 @@ def constant_impulse(variant):
         logger.dumpkvs()
 
 
-def evaluation(variant, env, policy, npy_path,disturber= None):
-    env_name = variant['env_name']
+def evaluation(CONFIG, env, policy, npy_path,disturber= None):
+    env_name = CONFIG['env_name']
 
-    env_params = variant['env_params']
+    env_params = CONFIG['env_params']
     disturbance_step = get_distrubance_function(env_name)
     max_ep_steps = env_params['max_ep_steps']
 
-    eval_params = variant['eval_params']
+    eval_params = CONFIG['eval_params']
     a_dim = env.action_space.shape[0]
     a_upperbound = env.action_space.high
     a_lowerbound = env.action_space.low
@@ -183,8 +182,8 @@ def evaluation(variant, env, policy, npy_path,disturber= None):
 
     total_cost = []
     death_rates = []
-    form_of_eval = variant['evaluation_form']
-    trial_list = os.listdir(variant['log_path'])
+    form_of_eval = CONFIG['evaluation_form']
+    trial_list = os.listdir(CONFIG['log_path'])
     episode_length = []
     cost_paths = []
     value_paths = []
@@ -193,9 +192,9 @@ def evaluation(variant, env, policy, npy_path,disturber= None):
     for trial in trial_list:
         if trial == 'eval':
             continue
-        if trial not in variant['trials_for_eval']:
+        if trial not in CONFIG['trials_for_eval']:
             continue
-        success_load = policy.restore(os.path.join(variant['log_path'], trial)+'/policy')
+        success_load = policy.restore(os.path.join(CONFIG['log_path'], trial)+'/policy')
         if not success_load:
             continue
         die_count = 0
@@ -274,14 +273,14 @@ def evaluation(variant, env, policy, npy_path,disturber= None):
 
     return diagnostic, path_dict
 
-def training_evaluation(variant, env, policy, disturber= None):
-    env_name = variant['env_name']
+def training_evaluation(CONFIG, env, policy, disturber= None):
+    env_name = CONFIG['env_name']
 
-    env_params = variant['env_params']
+    env_params = CONFIG['env_params']
 
     max_ep_steps = env_params['max_ep_steps']
 
-    eval_params = variant['eval_params']
+    eval_params = CONFIG['eval_params']
 
     a_upperbound = env.action_space.high
     a_lowerbound = env.action_space.low
@@ -292,13 +291,13 @@ def training_evaluation(variant, env, policy, disturber= None):
 
     total_cost = []
     death_rates = []
-    form_of_eval = variant['evaluation_form']
-    trial_list = os.listdir(variant['log_path'])
+    form_of_eval = CONFIG['evaluation_form']
+    trial_list = os.listdir(CONFIG['log_path'])
     episode_length = []
 
     die_count = 0
     seed_average_cost = []
-    for i in range(variant['num_of_evaluation_paths']):
+    for i in range(CONFIG['num_of_evaluation_paths']):
 
         cost = 0
         s = env.reset()
@@ -337,16 +336,15 @@ def training_evaluation(variant, env, policy, disturber= None):
 
 
 
-def eval(VARIANT):
-    for name in VARIANT['eval_list']:
-        VARIANT['log_path'] = '/'.join(['./log', VARIANT['env_name'], name])
+def eval(CONFIG):
+    for name in CONFIG['eval_list']:
+        CONFIG['log_path'] = '/'.join(['./log', CONFIG['env_name'], name])
 
         if 'ALAC' in name:
-            VARIANT['alg_params'] = ALG_PARAMS['ALAC']
-            VARIANT['algorithm_name'] = 'ALAC'
+            CONFIG['alg_params'] = ALG_PARAMS['ALAC']
+            CONFIG['algorithm_name'] = 'ALAC'
         print('evaluating '+name)
-        if VARIANT['evaluation_form'] == 'constant_impulse':
-            constant_impulse(VARIANT)
-        tf.reset_default_graph()
+        if EVAL_PARAMS['evaluation_form'] == 'constant_impulse':
+            constant_impulse(CONFIG)
 
 

@@ -5,3 +5,4 @@ log_plot/
 .idea/
 .vscode/
 __pycache__/
+/venv

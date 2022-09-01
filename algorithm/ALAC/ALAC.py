@@ -130,7 +130,12 @@ class ALAC():
         state, action, new_state = data['obs'], data['act'], data['obs2']
 
         actor_policy, probalility_dist = self.actor_critic_agent.actor(new_state)
-        ent = probalility_dist.entropy().mean()
+
+        # ent = probalility_dist.entropy().mean()
+
+        ent_action = probalility_dist.rsample()  
+        ent_log_prob = probalility_dist.log_prob(ent_action).sum(-1, keepdim=True)  
+        ent = - ent_log_prob.mean()
         log_pi = probalility_dist.log_prob(actor_policy)
 
         lambda_e = self.lambda_e_op()
@@ -163,7 +168,7 @@ class ALAC():
         actor_policy, probalility_dist = self.actor_critic_agent.actor(new_state)
         log_pi = probalility_dist.log_prob(actor_policy)
 
-        return -(self.log_lambda_e * (log_pi + self.target_entropy)).mean()
+        return -(self.log_lambda_e * (log_pi + self.target_entropy).detach()).mean()
   
     def update_lagrange_multiplier_l(self, data):
         """ Update Lagrange multiplier (lambda_e)

@@ -1,7 +1,6 @@
 # Adaptive Lyapunov-based Actor-Critic
-
-We present a novel approach to the control problem using RL-based methods to achieve both stability and optimality required for Model-Free RL. Final experiences show lower costs and a high convergence rate to stability comparable to previous studies.
-
+- [Project webpage](https://sites.google.com/view/adaptive-lyapunov-actor-critic)
+- our paper is accepted by CoRL2023. The paper can be found in [Openreview](https://openreview.net/forum?id=rOCWUmMBSnH).
 We present GIFs below to show the architecture of ALAC.
 
 <div align=center>

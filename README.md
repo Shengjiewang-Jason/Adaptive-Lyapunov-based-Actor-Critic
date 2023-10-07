@@ -1,6 +1,6 @@
 # Adaptive Lyapunov-based Actor-Critic
 - [Project webpage](https://sites.google.com/view/adaptive-lyapunov-actor-critic)
-- our paper is accepted by CoRL2023. The paper can be found in [Openreview](https://openreview.net/forum?id=rOCWUmMBSnH).\\
+- our paper is accepted by CoRL2023. The paper can be found in [Openreview](https://openreview.net/forum?id=rOCWUmMBSnH).
 
 
 We present GIFs below to show the architecture of ALAC.
